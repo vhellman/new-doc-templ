@@ -12,6 +12,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^7.3.2",
+    "@tanstack/react-router": "^1.170.46",
     "@tiptap/core": "^3.4.4",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.4.4",

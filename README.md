@@ -4,6 +4,8 @@ A browser-only Text authoring and integration prototype, reconstructed from the 
 
 ## Try the complete flow
 
+The Text workspace is available at `/texts`; `/` redirects there. Use the header navigation to switch to `/layouts`, which currently contains a placeholder for future Layout authoring. Unknown URLs show a not-found page. Hosting must serve `index.html` for application routes so direct links and refreshes work.
+
 1. Open **Payment reminder**. Type `$` in a paragraph to insert or create a variable. Type `#` on an empty paragraph to insert an existing reusable Text. Create new Texts with the **+** in navigation.
 2. Select a variable or reference. Properties edits the Data Field metadata or makes a reference conditional on a boolean field.
 3. Click **Preview**. The form comes from recursively derived requirements. Change **Has representative** to see its conditional fields and nested Text disappear or appear.

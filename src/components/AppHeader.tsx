@@ -1,7 +1,8 @@
 import { AppBar, Box, Button, Stack, Toolbar, Typography } from '@mui/material'
+import { Link } from '@tanstack/react-router'
 
 interface Props {
-  onPreview: () => void
+  onPreview?: () => void
 }
 
 export function AppHeader({ onPreview }: Props) {
@@ -44,9 +45,14 @@ export function AppHeader({ onPreview }: Props) {
           </Box>
         </Stack>
 
-        <Button variant="contained" size="small" onClick={onPreview}>
+        <Stack component="nav" aria-label="Workspace" direction="row" spacing={1}>
+          <Button component={Link} to="/texts" activeProps={{ 'aria-current': 'page' }} sx={{ '&[aria-current="page"]': { bgcolor: 'action.selected' } }}>Texts</Button>
+          <Button component={Link} to="/layouts" activeProps={{ 'aria-current': 'page' }} sx={{ '&[aria-current="page"]': { bgcolor: 'action.selected' } }}>Layouts</Button>
+        </Stack>
+
+        {onPreview && <Button variant="contained" size="small" onClick={onPreview}>
           Preview
-        </Button>
+        </Button>}
       </Toolbar>
     </AppBar>
   )
