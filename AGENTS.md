@@ -93,9 +93,9 @@ Keep these concerns separate where practical:
 
 Domain logic must not depend on React, MUI, or Tiptap UI components.
 
-Tiptap/ProseMirror JSON is the canonical authored content representation.
+Constrained HTML is the canonical authored content representation, including in the backend.
 
-Do not introduce an incompatible second document representation or derive document semantics by parsing HTML.
+Tiptap/ProseMirror JSON is an editor implementation detail. Parse the documented HTML dialect structurally to derive semantics; do not infer domain meaning from visual labels or use raw string replacement.
 
 ## HTTP and API integration
 

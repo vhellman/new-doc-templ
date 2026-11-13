@@ -12,7 +12,7 @@ The exact JSON representation may evolve, but the rules in this document should 
 
 For a Text revision:
 
-- Tiptap/ProseMirror document
+- Canonical constrained HTML fragment
 - Data Field Catalogue
 - referenced Texts
 - recursively referenced Texts
@@ -78,7 +78,7 @@ The exact shape is not final.
 
 ### Direct variable
 
-If a Text directly contains a variable node for field `F`:
+If a Text directly contains a `doc-variable` element for field `F`:
 
 `F` is always required unless the current traversal is already inside a condition.
 
@@ -105,7 +105,7 @@ payment.amount
 
 If A references B when boolean field `C = true`:
 
-- `C` is always required
+- `C` is required under the current ancestor conditions (always required at the root)
 - requirements of B become required under condition `C = true`
 
 Example:
@@ -261,3 +261,7 @@ Conditional:
 - representative.name when case.hasRepresentative = true
 
 Both implementations should produce equivalent semantics.
+
+## Initial authoring HTTP contract
+
+See `../api/openapi.json` for the proposed wire representation. Its `requirements[].requiredWhen` is an OR of AND condition paths, with `[[]]` representing unconditional requiredness. This concretizes the conceptual examples above. Draft contract responses include structured `validationIssues` and `valid`; invalid contracts may contain partial requirements and must not be used as complete integration contracts. The backend parses the canonical HTML dialect directly.

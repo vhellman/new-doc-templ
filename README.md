@@ -19,3 +19,7 @@ Texts and Data Fields are saved in browser localStorage in this POC. Clear site 
 `TextTemplate.html` is canonical. It contains ordinary constrained HTML plus `<doc-variable field-id="…"></doc-variable>` and `<doc-text-ref text-id="…" condition-field-id="…" expected-value="true"></doc-text-ref>`. Editor labels are derived from the team's Data Field catalogue and stripped when saving HTML. No `${path}` or `#{text}` text parsing is used. The DOM walker recursively derives the contract; the renderer uses the same IDs and escapes supplied data. Cycles, missing references, invalid conditions, duplicate paths, and unknown fields become validation issues.
 
 The browser implementation tests the product flow, not production authority. A Go backend should parse and validate this exact HTML dialect on save and render, pin published dependencies and field semantics to immutable revisions, and retain the renderer and assets needed for reproduction. Production's public render entry point is a Layout; Text rendering here is preview and integration tooling.
+
+## Proposed BFF API
+
+See [the endpoint inventory and design notes](api/README.md) and [OpenAPI specification](api/openapi.json). These describe the proposed authoring backend; the running frontend still uses localStorage and browser-side analysis/rendering.

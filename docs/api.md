@@ -4,7 +4,7 @@
 
 Defines the expected developer-facing API direction.
 
-This is not a frozen OpenAPI specification yet.
+The initial proposed authoring BFF contract is `../api/openapi.json`; its operation inventory, scope and unresolved decisions are in `../api/README.md`. Once agreed, that OpenAPI document is authoritative for HTTP shapes. Examples below describe product direction and must not override the concrete authoring contract. Layout production operations remain deferred.
 
 The production API should prioritize self-service and clear contracts.
 
@@ -84,16 +84,13 @@ Conceptual request:
 ```json
 {
   "displayName": "Payment reminder",
-  "document": {
-    "type": "doc",
-    "content": []
-  }
+  "html": "<p></p>"
 }
 ```
 
 Important:
 
-The frontend sends authored Tiptap JSON.
+The frontend sends canonical constrained HTML. Tiptap JSON is an editor detail.
 
 The backend derives the contract itself.
 
@@ -103,9 +100,19 @@ The backend may return derived metadata for immediate display:
 
 ```json
 {
-  "textId": "text-123",
-  "derivedContract": {},
-  "validationErrors": []
+  "draft": {
+    "id": "text-123",
+    "ownerTeamId": "claims",
+    "displayName": "Payment reminder",
+    "html": "<p></p>"
+  },
+  "contract": {
+    "textId": "text-123",
+    "valid": true,
+    "requirements": [],
+    "referencedTextIds": [],
+    "validationIssues": []
+  }
 }
 ```
 

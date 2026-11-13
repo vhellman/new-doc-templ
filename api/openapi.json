@@ -1,0 +1,1711 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "Document Platform Authoring BFF",
+    "version": "0.1.0",
+    "description": "Proposed BFF contract derived from current frontend workflows. No endpoints are implemented yet. Canonical authored content is constrained HTML. Text endpoints operate only on mutable working drafts and are preview/tooling APIs, not the eventual public Layout rendering service. Authentication/session transport and team authorization policy require a corporate infrastructure decision; absence of security schemes here does not authorize anonymous deployment. See api/README.md for mapping, proposed decisions and deferred endpoints."
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Proposed same-origin BFF mount"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Teams",
+      "description": "Read-only ownership context."
+    },
+    {
+      "name": "Texts",
+      "description": "Working draft authoring and recursive analysis."
+    },
+    {
+      "name": "Data Fields",
+      "description": "Team catalogue and registration."
+    }
+  ],
+  "paths": {
+    "/teams": {
+      "get": {
+        "operationId": "listTeams",
+        "tags": [
+          "Teams"
+        ],
+        "summary": "List accessible teams",
+        "description": "Replaces the hardcoded claims team as ownership context. Read-only discovery; no team administration. Ordered by namespace then id.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Query"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      }
+    },
+    "/texts": {
+      "get": {
+        "operationId": "listTexts",
+        "tags": [
+          "Texts"
+        ],
+        "summary": "List or search Texts",
+        "description": "Navigation and reusable Text autocomplete. Ordered by displayName then id. No authored HTML in list items; load the chosen draft separately. The client can exclude its own ID from reference suggestions; the server still validates cycles.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnerTeamId"
+          },
+          {
+            "$ref": "#/components/parameters/Query"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createText",
+        "tags": [
+          "Texts"
+        ],
+        "summary": "Create a Text with a working draft",
+        "description": "Stable identity is server-assigned, independent of displayName. Semantic issues are returned in contract without discarding editable content; unsafe or invalid HTML is rejected with 422.",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextDraftResult"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Strong, quoted, opaque version of this mutable resource. Use verbatim in If-Match. Does not version referenced Texts or Data Fields.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "\"v7\""
+              },
+              "Location": {
+                "description": "Relative URL of the created resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextCreate"
+              },
+              "example": {
+                "ownerTeamId": "claims",
+                "displayName": "Payment reminder"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/texts/{textId}": {
+      "get": {
+        "operationId": "getText",
+        "tags": [
+          "Texts"
+        ],
+        "summary": "Read a Text working draft and its derived contract",
+        "description": "Includes canonical HTML for editing and Template HTML inspection, and recursively derived validation/requirements for the inspector and preview form. ETag versions the draft only.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextDraftResult"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Strong, quoted, opaque version of this mutable resource. Use verbatim in If-Match. Does not version referenced Texts or Data Fields.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "\"v7\""
+              },
+              "Location": {
+                "description": "Relative URL of the created resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TextId"
+          }
+        ]
+      }
+    },
+    "/texts/{textId}/draft": {
+      "put": {
+        "operationId": "saveTextDraft",
+        "tags": [
+          "Texts"
+        ],
+        "summary": "Replace name and canonical HTML of a working draft",
+        "description": "Complete replacement of editable fields, including rename, rich-text changes, variables, references and boolean inclusion conditions. Well-formed dialect HTML with missing references/fields, cycles or other derivation issues remains saveable with contract.valid=false and structured validationIssues. Invalid or unsafe HTML is rejected. Published revision mutation is never implied. ETag is the same draft validator returned by GET /texts/{textId}.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextDraftResult"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Strong, quoted, opaque version of this mutable resource. Use verbatim in If-Match. Does not version referenced Texts or Data Fields.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "\"v7\""
+              },
+              "Location": {
+                "description": "Relative URL of the created resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "428": {
+            "$ref": "#/components/responses/PreconditionRequired"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TextId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextDraftWrite"
+              },
+              "example": {
+                "displayName": "Payment reminder",
+                "html": "<p>Hello <doc-variable field-id=\"field-customer-first-name\"></doc-variable>.</p><doc-text-ref text-id=\"representative-information\" condition-field-id=\"field-has-representative\" expected-value=\"true\"></doc-text-ref>"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/texts/{textId}/contract": {
+      "get": {
+        "operationId": "getTextContract",
+        "tags": [
+          "Texts"
+        ],
+        "summary": "Derive recursive draft data requirements",
+        "description": "Backend-authoritative authoring analysis. Returns 200 with valid=false for semantic issues so authors can inspect incomplete drafts. Nested condition guard fields are required only under their parent conditions. No client-submitted contract is accepted. Not a published production contract.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextContract"
+                },
+                "examples": {
+                  "paymentReminder": {
+                    "value": {
+                      "textId": "payment-reminder",
+                      "valid": true,
+                      "requirements": [
+                        {
+                          "field": {
+                            "id": "field-has-representative",
+                            "ownerTeamId": "claims",
+                            "displayName": "Has representative",
+                            "path": "case.hasRepresentative",
+                            "type": "boolean",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            []
+                          ]
+                        },
+                        {
+                          "field": {
+                            "id": "field-customer-first-name",
+                            "ownerTeamId": "claims",
+                            "displayName": "Customer first name",
+                            "path": "customer.firstName",
+                            "type": "string",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            []
+                          ]
+                        },
+                        {
+                          "field": {
+                            "id": "field-payment-amount",
+                            "ownerTeamId": "claims",
+                            "displayName": "Payment amount",
+                            "path": "payment.amount",
+                            "type": "number",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            []
+                          ]
+                        },
+                        {
+                          "field": {
+                            "id": "field-representative-name",
+                            "ownerTeamId": "claims",
+                            "displayName": "Representative name",
+                            "path": "representative.name",
+                            "type": "string",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            [
+                              {
+                                "fieldId": "field-has-representative",
+                                "path": "case.hasRepresentative",
+                                "displayName": "Has representative",
+                                "equals": true
+                              }
+                            ]
+                          ]
+                        }
+                      ],
+                      "referencedTextIds": [
+                        "representative-information"
+                      ],
+                      "validationIssues": []
+                    }
+                  },
+                  "nestedConditions": {
+                    "summary": "Inner guard is needed only when its parent is true; customer name requires both guards.",
+                    "value": {
+                      "textId": "text-a",
+                      "valid": true,
+                      "requirements": [
+                        {
+                          "field": {
+                            "id": "field-x",
+                            "ownerTeamId": "claims",
+                            "displayName": "customer.name",
+                            "path": "customer.name",
+                            "type": "string",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            [
+                              {
+                                "fieldId": "field-a",
+                                "path": "flags.a",
+                                "displayName": "flags.a",
+                                "equals": true
+                              },
+                              {
+                                "fieldId": "field-b",
+                                "path": "flags.b",
+                                "displayName": "flags.b",
+                                "equals": true
+                              }
+                            ]
+                          ]
+                        },
+                        {
+                          "field": {
+                            "id": "field-a",
+                            "ownerTeamId": "claims",
+                            "displayName": "flags.a",
+                            "path": "flags.a",
+                            "type": "boolean",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            []
+                          ]
+                        },
+                        {
+                          "field": {
+                            "id": "field-b",
+                            "ownerTeamId": "claims",
+                            "displayName": "flags.b",
+                            "path": "flags.b",
+                            "type": "boolean",
+                            "description": ""
+                          },
+                          "requiredWhen": [
+                            [
+                              {
+                                "fieldId": "field-a",
+                                "path": "flags.a",
+                                "displayName": "flags.a",
+                                "equals": true
+                              }
+                            ]
+                          ]
+                        }
+                      ],
+                      "referencedTextIds": [
+                        "text-b",
+                        "text-c"
+                      ],
+                      "validationIssues": []
+                    }
+                  },
+                  "invalidCycle": {
+                    "summary": "Analysis succeeds as an HTTP operation but the draft is not renderable.",
+                    "value": {
+                      "textId": "text-a",
+                      "valid": false,
+                      "requirements": [],
+                      "referencedTextIds": [
+                        "text-b",
+                        "text-a"
+                      ],
+                      "validationIssues": [
+                        {
+                          "code": "TEXT_REFERENCE_CYCLE",
+                          "message": "Circular reference: text-a -> text-b -> text-a.",
+                          "referencePath": [
+                            "text-a",
+                            "text-b",
+                            "text-a"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TextId"
+          }
+        ]
+      }
+    },
+    "/texts/{textId}/render": {
+      "post": {
+        "operationId": "renderTextPreview",
+        "tags": [
+          "Texts"
+        ],
+        "summary": "Render the saved working draft for preview/tooling",
+        "description": "Flush draft saves before calling. Derive/validate the full reachable template graph, then validate data and evaluate boolean reference conditions using strict boolean equality. Return 422 for invalid semantics or missing/invalid reached values; never return error placeholders as successful HTML. Reads drafts and catalogue coherently. No revision/time selection, PDF, document record or historical reproduction. Dependencies may change between contract discovery and rendering; rendering validates again.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderResult"
+                },
+                "example": {
+                  "html": "<h2>Payment reminder</h2><p>Hello Anna,</p><p>The outstanding amount is 1200.</p>"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          },
+          "422": {
+            "description": "Invalid template semantics or missing/invalid reached render data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": "Render data is invalid.",
+                    "details": [
+                      {
+                        "code": "MISSING_REQUIRED_DATA",
+                        "message": "Customer first name is required.",
+                        "fieldId": "field-customer-first-name",
+                        "path": "customer.firstName"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TextId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderRequest"
+              },
+              "example": {
+                "data": {
+                  "customer": {
+                    "firstName": "Anna"
+                  },
+                  "case": {
+                    "hasRepresentative": false
+                  },
+                  "payment": {
+                    "amount": 1200
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data-fields": {
+      "get": {
+        "operationId": "listDataFields",
+        "tags": [
+          "Data Fields"
+        ],
+        "summary": "List or search catalogue fields",
+        "description": "For variable autocomplete, property lookup and boolean condition selection. Ordered by path then id. Fetch all pages when using a local catalogue; filter boolean fields client-side.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataFieldList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnerTeamId"
+          },
+          {
+            "$ref": "#/components/parameters/Query"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createDataField",
+        "tags": [
+          "Data Fields"
+        ],
+        "summary": "Create a catalogue field while authoring",
+        "description": "Create the field first, then insert its stable ID into authored HTML and save the Text. Duplicate paths in the owning team return 409. Returned ETag is used for property edits.",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataField"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Strong, quoted, opaque version of this mutable resource. Use verbatim in If-Match. Does not version referenced Texts or Data Fields.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "\"v7\""
+              },
+              "Location": {
+                "description": "Relative URL of the created resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataFieldCreate"
+              },
+              "example": {
+                "ownerTeamId": "claims",
+                "displayName": "Customer first name",
+                "path": "customer.firstName",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data-fields/{fieldId}": {
+      "get": {
+        "operationId": "getDataField",
+        "tags": [
+          "Data Fields"
+        ],
+        "summary": "Read catalogue metadata and its version",
+        "description": "Resolves a stable field ID for Properties and provides its current ETag.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataField"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Strong, quoted, opaque version of this mutable resource. Use verbatim in If-Match. Does not version referenced Texts or Data Fields.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "\"v7\""
+              },
+              "Location": {
+                "description": "Relative URL of the created resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FieldId"
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateDataField",
+        "tags": [
+          "Data Fields"
+        ],
+        "summary": "Edit catalogue field metadata",
+        "description": "Partial JSON object; omitted properties remain unchanged. Null is not deletion. ID and ownership are immutable. Changes affect current draft contracts; the server must invalidate/rederive affected analyses. Boolean condition references can become invalid after a type change and must surface validation issues. Published field semantics must be isolated before production publishing is introduced.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataField"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Strong, quoted, opaque version of this mutable resource. Use verbatim in If-Match. Does not version referenced Texts or Data Fields.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "\"v7\""
+              },
+              "Location": {
+                "description": "Relative URL of the created resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "428": {
+            "$ref": "#/components/responses/PreconditionRequired"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FieldId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataFieldPatch"
+              },
+              "example": {
+                "description": "Given name of the customer."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data-fields/register": {
+      "post": {
+        "operationId": "registerDataFields",
+        "tags": [
+          "Data Fields"
+        ],
+        "summary": "Register a team path-to-type map atomically",
+        "description": "Matches the existing Register team data fields workflow. Existing same-path/same-type entries are returned unchanged. A same-path/different-type entry yields 409 with path details and no changes to any entries. Otherwise create missing fields with server-assigned stable IDs and display names from the final path segment. Repeating the same request is safe; concurrent registrations must enforce uniqueness transactionally. This operation never edits existing fields and therefore needs no If-Match. Not a JSON Schema import or a document contract.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldRegistrationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "default": {
+            "$ref": "#/components/responses/Unexpected"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldRegistrationRequest"
+              },
+              "example": {
+                "ownerTeamId": "claims",
+                "fields": {
+                  "claim.decisionDate": "date",
+                  "case.hasRepresentative": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "TextId": {
+        "name": "textId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        }
+      },
+      "FieldId": {
+        "name": "fieldId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        }
+      },
+      "OwnerTeamId": {
+        "name": "ownerTeamId",
+        "in": "query",
+        "required": true,
+        "description": "Catalogue/ownership scope. Team must be accessible to the caller. Cross-team sharing is not defined by this draft.",
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        }
+      },
+      "Query": {
+        "name": "query",
+        "in": "query",
+        "description": "Optional case-insensitive substring: Text displayName/id; Data Field displayName/path; Team name/namespace. Omitted/empty means all.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "description": "Opaque nextCursor from the same filters. Invalid cursor returns 400.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 100
+        }
+      },
+      "IfMatch": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "description": "One strong ETag returned by the latest resource read/write. Wildcard and multiple tags are not supported. Missing: 428; malformed: 400; stale: 412.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "\"v7\""
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed JSON, query, cursor or headers.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "BAD_REQUEST",
+                "message": "Malformed JSON, query, cursor or headers.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Caller is not authenticated. Authentication transport is unresolved.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "UNAUTHENTICATED",
+                "message": "Caller is not authenticated. Authentication transport is unresolved.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Caller lacks access to this operation or team.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "FORBIDDEN",
+                "message": "Caller lacks access to this operation or team.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Requested resource or owning team does not exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "Requested resource or owning team does not exist.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Catalogue path collision or bulk registration type conflict. No write was applied.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "CONFLICT",
+                "message": "Catalogue path collision or bulk registration type conflict. No write was applied.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "PreconditionFailed": {
+        "description": "Resource changed; re-read and reconcile before retrying.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "STALE_VERSION",
+                "message": "Resource changed; re-read and reconcile before retrying.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "Unprocessable": {
+        "description": "Invalid request content, HTML dialect, template semantics or reached render data. No write/render occurred.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_FAILED",
+                "message": "Invalid request content, HTML dialect, template semantics or reached render data. No write/render occurred.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "PreconditionRequired": {
+        "description": "If-Match is required for updating a mutable resource.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "PRECONDITION_REQUIRED",
+                "message": "If-Match is required for updating a mutable resource.",
+                "details": []
+              }
+            }
+          }
+        }
+      },
+      "Unexpected": {
+        "description": "Unexpected server failure.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Unexpected server failure.",
+                "details": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Opaque stable server-assigned identity. Clients must not infer slug or UUID structure."
+      },
+      "FieldType": {
+        "type": "string",
+        "enum": [
+          "string",
+          "number",
+          "date",
+          "boolean"
+        ]
+      },
+      "DataPath": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$",
+        "description": "Nested object path, unique within the owning team catalogue. Never a dotted key in render data."
+      },
+      "AuthoredHtml": {
+        "type": "string",
+        "description": "Canonical constrained HTML fragment, not a full HTML document or Tiptap JSON. See docs/tiptap-schema.md for tags and semantic attributes. Server validates and canonicalizes; labels and editor attributes are not stored.",
+        "examples": [
+          "<p>Hello <doc-variable field-id=\"field-customer-first-name\"></doc-variable>.</p><doc-text-ref text-id=\"representative-information\" condition-field-id=\"field-has-representative\" expected-value=\"true\"></doc-text-ref>"
+        ]
+      },
+      "Team": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "namespace"
+        ]
+      },
+      "DataField": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "ownerTeamId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "path": {
+            "$ref": "#/components/schemas/DataPath"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FieldType"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ownerTeamId",
+          "displayName",
+          "path",
+          "type",
+          "description"
+        ]
+      },
+      "DataFieldCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ownerTeamId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "$ref": "#/components/schemas/DataPath"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FieldType"
+          },
+          "description": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "required": [
+          "ownerTeamId",
+          "displayName",
+          "type"
+        ],
+        "description": "When path is omitted the server generates a unique custom camelCase path from displayName, adding a numeric suffix on collision. IDs are server-assigned."
+      },
+      "DataFieldPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "$ref": "#/components/schemas/DataPath"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FieldType"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "minProperties": 1
+      },
+      "TextSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "ownerTeamId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ownerTeamId",
+          "displayName"
+        ]
+      },
+      "TextDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "ownerTeamId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "html": {
+            "$ref": "#/components/schemas/AuthoredHtml"
+          }
+        },
+        "required": [
+          "id",
+          "ownerTeamId",
+          "displayName",
+          "html"
+        ]
+      },
+      "TextCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ownerTeamId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "html": {
+            "$ref": "#/components/schemas/AuthoredHtml"
+          }
+        },
+        "required": [
+          "ownerTeamId",
+          "displayName"
+        ],
+        "description": "Creates a logical Text and its mutable working draft. Omitted html defaults to <p></p>. No published revision is created."
+      },
+      "TextDraftWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "html": {
+            "$ref": "#/components/schemas/AuthoredHtml"
+          }
+        },
+        "required": [
+          "displayName",
+          "html"
+        ]
+      },
+      "Condition": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fieldId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "path": {
+            "$ref": "#/components/schemas/DataPath"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "equals": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fieldId",
+          "path",
+          "displayName",
+          "equals"
+        ]
+      },
+      "FieldRequirement": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "$ref": "#/components/schemas/DataField"
+          },
+          "requiredWhen": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Condition"
+              }
+            },
+            "minItems": 1,
+            "description": "OR across outer entries; AND within each entry. [[]] means unconditional. An always-required occurrence supersedes conditional occurrences of that field. Nested conditions must retain their complete conjunction."
+          }
+        },
+        "required": [
+          "field",
+          "requiredWhen"
+        ]
+      },
+      "ValidationIssue": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable machine-readable code. See api/README.md for the initial vocabulary."
+          },
+          "message": {
+            "type": "string"
+          },
+          "fieldId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "textId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "path": {
+            "type": "string",
+            "description": "Data path, when relevant."
+          },
+          "pointer": {
+            "type": "string",
+            "description": "JSON Pointer into request body, when relevant."
+          },
+          "referencePath": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            },
+            "description": "Ordered Text IDs including repeated last ID for a cycle."
+          },
+          "requiredWhen": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Condition"
+              }
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "TextContract": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "textId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldRequirement"
+            }
+          },
+          "referencedTextIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            },
+            "uniqueItems": true
+          },
+          "validationIssues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            }
+          }
+        },
+        "required": [
+          "textId",
+          "valid",
+          "requirements",
+          "referencedTextIds",
+          "validationIssues"
+        ],
+        "description": "Derived recursively from current working drafts and the owning team catalogue in one coherent read. valid is true iff validationIssues is empty. Invalid results may contain partial requirements and must not be used as a complete integration contract. Requirements sorted by field path; referencedTextIds contains all distinct transitive Text IDs encountered."
+      },
+      "TextDraftResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/TextDraft"
+          },
+          "contract": {
+            "$ref": "#/components/schemas/TextContract"
+          }
+        },
+        "required": [
+          "draft",
+          "contract"
+        ]
+      },
+      "RenderRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Nested JSON matching derived paths. Reached values must match catalogue types: string, JSON number, JSON boolean, or ISO 8601 full-date string (YYYY-MM-DD). Missing/null/empty-string reached values are invalid; false and zero are valid. Unreached conditional values may be absent; unrelated properties are ignored."
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "RenderResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "html": {
+            "type": "string",
+            "description": "Rendered HTML fragment with references expanded and variable data escaped as text. No persisted document is created."
+          }
+        },
+        "required": [
+          "html"
+        ]
+      },
+      "FieldRegistrationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ownerTeamId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "fields": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "$ref": "#/components/schemas/DataPath"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FieldType"
+            },
+            "description": "Map from API path to field type, matching the current registration UI."
+          }
+        },
+        "required": [
+          "ownerTeamId",
+          "fields"
+        ]
+      },
+      "FieldRegistrationResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataField"
+            },
+            "description": "All requested fields, both newly created and already registered."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "TeamList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Team"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque continuation cursor; null when complete."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "TextList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TextSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque continuation cursor; null when complete."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "DataFieldList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataField"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque continuation cursor; null when complete."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      }
+    }
+  }
+}

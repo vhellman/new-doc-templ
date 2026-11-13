@@ -74,7 +74,7 @@ Fields:
 - `id`
 - `textId`
 - `status`
-- `document` — canonical Tiptap/ProseMirror JSON
+- `html` — canonical constrained HTML with stable-ID semantic elements
 - `validFrom`
 - `validTo`
 - derived metadata / compiled contract

@@ -1,196 +1,54 @@
-# Tiptap Schema
+# Canonical HTML and editor schema
 
-## Purpose
+## Representation decision
 
-Defines the frontend authoring semantics that the Go backend must understand.
+Canonical authored content, including backend storage and API payloads, is a constrained HTML fragment. This follows the product decision to keep the backend independent of Tiptap/ProseMirror JSON. Tiptap remains the current editor; its JSON and node views are implementation details. This supersedes the previous JSON-canonical direction.
 
-Exact implementation code may change. Semantic meaning should remain stable.
+`src/lib/html.ts` currently canonicalizes the fragment; `src/lib/contract.ts` and `src/lib/render.ts` walk parsed HTML. The Go backend must implement the same semantic dialect using an HTML parser, not regular-expression extraction or raw string replacement. The backend is authoritative for validation, contract derivation and rendering.
 
-## Canonical authored representation
+## Ordinary content
 
-Use Tiptap/ProseMirror JSON as the canonical authored content representation.
+The current persisted/rendered tag set is `p`, `h1`–`h6`, `strong`, `em`, `s`, `code`, `blockquote`, `ul`, `ol`, `li`, `br`. Ordinary attributes are not part of this dialect. Do not expand the schema without an authoring need. Scripts, event handlers, style attributes, arbitrary URLs and editor node-view markup are not canonical content.
 
-HTML is an output/rendering representation.
+The proposed BFF rejects unsupported or unsafe markup with structured `INVALID_HTML` issues. The browser POC currently strips attributes and unwraps unknown elements; that permissive sanitizer is not a sufficient production validator. Canonicalization details and parser-normalization fixtures must be verified when the backend is implemented.
 
-Do not store domain meaning only in visual HTML.
+## Semantic elements
 
-## Variable node
+Inline variable:
 
-A variable references one Data Field by stable ID.
-
-Conceptual shape:
-
-```json
-{
-  "type": "variable",
-  "attrs": {
-    "fieldId": "field-123"
-  }
-}
+```html
+<doc-variable field-id="field-123"></doc-variable>
 ```
 
-Display name, path, and type are resolved from the Data Field Catalogue.
+Unconditional block Text reference:
 
-Do not duplicate those values into the node unless needed purely for temporary UI resilience.
-
-The stable field ID is authoritative.
-
-Expected editor behaviour:
-
-- inline atom/token
-- selectable
-- visually distinct
-- selecting it opens Properties
-
-## Text reference node
-
-References another Text.
-
-Unconditional conceptual shape:
-
-```json
-{
-  "type": "textReference",
-  "attrs": {
-    "textId": "text-123",
-    "conditionFieldId": null,
-    "expectedValue": null
-  }
-}
+```html
+<doc-text-ref text-id="text-123"></doc-text-ref>
 ```
 
-Conditional conceptual shape:
+Conditional block Text reference:
 
-```json
-{
-  "type": "textReference",
-  "attrs": {
-    "textId": "text-123",
-    "conditionFieldId": "field-456",
-    "expectedValue": true
-  }
-}
+```html
+<doc-text-ref text-id="text-123" condition-field-id="field-456" expected-value="true"></doc-text-ref>
 ```
 
-Rules:
+Variables require a nonempty stable Data Field ID. References require a nonempty stable Text ID. Semantic elements have no authored child content. An unconditional reference has neither condition attribute. A conditional reference has both attributes: `condition-field-id` resolves to a boolean Data Field and `expected-value` is exactly `true` or `false`. Missing/invalid semantic attributes yield validation issues; the backend must not silently invent a boolean value.
 
-- `conditionFieldId` must resolve to a boolean field.
-- `expectedValue` is boolean when a condition exists.
-- absence of a condition means always include.
-- referenced Text is resolved recursively.
+Display names, paths, types and descriptions come from the catalogue. Referenced Text names come from the Text resource. Editor hints such as `data-label`, selection classes and condition labels are never authoritative or persisted. Removing a variable/reference edits the HTML, not the catalogue or referenced Text.
 
-Expected editor behaviour:
+Text references resolve recursively; cycles are invalid. Nested conditional references preserve all ancestor conditions. The platform controls presentation using external boolean facts; it does not evaluate a general business-rules language.
 
-- visually distinct from normal text
-- selectable
-- selecting opens Properties
-- default insertion is unconditional
+## Editor behavior
 
-## Normal rich-text nodes
+- Variables are selectable inline atoms; Text references are selectable block nodes. Selecting either opens Properties.
+- `$` opens Data Field suggestions and a discoverable Create Variable action. Creation first registers a field, then inserts its stable ID.
+- `#` on an empty paragraph opens existing Text suggestions and does not create Texts.
+- Arrow keys navigate suggestions; Enter/Tab selects; Escape closes. Consumed keys do not move the caret.
+- New Text references are unconditional. Properties can select a boolean field and expected value.
+- Saving removes temporary editor presentation attributes. Rendering escapes supplied variable values as text.
 
-Use standard Tiptap/ProseMirror nodes where possible.
+## Compatibility fixtures
 
-Initial POC may support:
+Backend/frontend shared fixtures should use canonical HTML, catalogue entries and referenced Texts. Include direct/multiple variables, unconditional/nested references, conditional/nested conditions, missing fields/Texts, cycles, non-boolean guards, invalid expected values, stripped editor hints, rejected unsafe markup and escaped input data. Include false/zero and missing conditional values. No fixture suite exists yet.
 
-- `doc`
-- `paragraph`
-- `text`
-- `heading`
-- `bulletList`
-- `orderedList`
-- `listItem`
-- basic marks such as bold/italic
-
-Do not expand the schema unless a real authoring need appears.
-
-## Autocomplete semantics
-
-Typing `$`:
-
-- opens Data Field autocomplete
-- existing fields can be inserted
-- Create Variable action is always discoverable
-
-Typing `#`:
-
-- opens existing Text autocomplete
-- does not create new Texts
-
-Keyboard behaviour:
-
-- ArrowUp / ArrowDown move selection
-- Enter / Tab selects
-- Escape closes
-- editor caret should not move while autocomplete consumes these keys
-
-## Variable creation
-
-When author creates a new variable:
-
-1. create a Data Field
-2. generate stable field ID
-3. generate initial API path
-4. insert variable node referencing the field ID
-5. open Properties
-
-The node itself should not become the Data Field definition.
-
-The catalogue remains the source of field metadata.
-
-## Backend parsing
-
-The Go backend must understand the same semantic node types.
-
-Backend contract derivation should walk Tiptap JSON directly.
-
-Do not convert to HTML and parse HTML to rediscover variables/references.
-
-Pseudo traversal:
-
-```text
-walk(node):
-  if variable:
-      process fieldId
-
-  if textReference:
-      validate referenced Text
-      validate optional boolean condition
-      recurse into referenced Text
-
-  recurse into normal child content
-```
-
-## Rendering
-
-Rendering eventually converts the structured document to HTML.
-
-Conceptually:
-
-```text
-Tiptap JSON
-  -> resolve Text references
-  -> evaluate boolean references
-  -> resolve variables from request data
-  -> render HTML
-```
-
-Do not make raw HTML string replacement the authoritative semantic engine.
-
-## Compatibility
-
-Frontend and backend should share fixtures containing Tiptap JSON.
-
-Recommended fixture set:
-
-1. Direct variable
-2. Multiple variables
-3. Unconditional Text reference
-4. Nested Text reference
-5. Conditional Text reference
-6. Nested conditional reference
-7. Missing Data Field
-8. Missing Text
-9. Circular Text reference
-10. Non-boolean condition field
-
-The same fixtures should be used to verify React-side and Go-side contract derivation semantics.
+See `../api/openapi.json` for proposed authoring request/response shapes and `contract-model.md` for derivation semantics. Production immutable dependency and historical rendering policies remain separate decisions.
